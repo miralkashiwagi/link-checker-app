@@ -16,28 +16,22 @@ export class Crawler {
   async crawlPage(url: string): Promise<Link[]> {
     try {
       if (this.processedUrls.has(url)) {
-        console.log(`[Crawler] Skipping already processed URL: ${url}`);
         return [];
       }
 
       this.baseUrl = url;
-      console.log(`[Crawler] Crawling page: ${url}`);
       const html = await this.getHtml(url);
       const links = this.extractLinks(html);
       
       this.processedUrls.add(url);
-      console.log(`[Crawler] Found ${links.length} links on ${url}`);
-      
       return links;
     } catch (error) {
-      console.error(`[Crawler] Error crawling ${url}:`, error);
       throw error;
     }
   }
 
   private async getHtml(url: string): Promise<string> {
     try {
-      console.log(`[Crawler] Fetching HTML from ${url}`);
       const result = await window.electronAPI.fetchUrl(url);
       
       if (!result.ok) {
@@ -46,7 +40,6 @@ export class Crawler {
       
       return result.text || '';
     } catch (error) {
-      console.error(`[Crawler] Failed to fetch ${url}:`, error);
       throw error;
     }
   }
@@ -65,6 +58,7 @@ export class Crawler {
 
       // baseUrlを基準にURLを解決
       const base = new URL(this.baseUrl);
+      
       if (href.startsWith('/')) {
         // ルート相対パスの場合
         return `${base.protocol}//${base.host}${href}`;
@@ -73,13 +67,43 @@ export class Crawler {
         return `${this.baseUrl}${href}`;
       } else {
         // 相対パスの場合
-        const path = base.pathname.endsWith('/') ? base.pathname : base.pathname + '/';
-        return `${base.protocol}//${base.host}${path}${href}`;
+        try {
+          // URLのコンストラクタを使って正しく解決
+          const resolvedUrl = new URL(href, this.baseUrl);
+          return resolvedUrl.toString();
+        } catch (error) {
+          console.error(`[Crawler] Error resolving relative URL ${href}:`, error);
+          return '';
+        }
       }
     } catch (error) {
       console.error(`[Crawler] Error resolving URL ${href}:`, error);
       return '';
     }
+  }
+
+  private getLinkText(element: HTMLAnchorElement): string {
+    // 1. aria-labelを優先
+    const ariaLabel = element.getAttribute('aria-label')?.trim();
+    if (ariaLabel) return ariaLabel;
+
+    // 2. img要素のalt属性をチェック
+    const imgAlts = Array.from(element.getElementsByTagName('img'))
+      .map(img => img.getAttribute('alt')?.trim())
+      .filter((alt): alt is string => alt !== null && alt !== '');
+    if (imgAlts.length > 0) return imgAlts.join(' ');
+
+    // 3. 直接のテキストノードのみを取得
+    const textNodes = Array.from(element.childNodes)
+      .filter(node => node.nodeType === 3) // テキストノードのみ
+      .map(node => node.textContent?.trim())
+      .filter((text): text is string => text !== null && text !== '');
+    
+    // テキストノードが見つかった場合はそれを使用
+    if (textNodes.length > 0) return textNodes.join(' ');
+
+    // 4. 上記で見つからない場合は、すべてのテキストを取得
+    return element.textContent?.trim() || '';
   }
 
   private extractLinks(html: string): Link[] {
@@ -90,9 +114,12 @@ export class Crawler {
           const href = this.resolveUrl(a.getAttribute('href') || '');
           if (!href) return null;
 
+          const text = this.getLinkText(a);
           const link: Link = {
             href,
-            text: a.textContent?.trim() || ''
+            text,
+            html: a.outerHTML,
+            parentHtml: a.parentElement?.outerHTML
           };
           
           const ariaLabel = a.getAttribute('aria-label')?.trim();

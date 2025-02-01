@@ -1,20 +1,89 @@
 /**
- * Check if link text is appropriate by comparing with target text
- */
-export function isLinkTextProper(linkText: string, targetText: string): boolean {
-  const linkTextLower = linkText.toLowerCase().trim();
-  const targetTextLower = targetText.toLowerCase().trim();
-  return targetTextLower.includes(linkTextLower);
-}
-
-/**
- * Convert relative URL to absolute URL
+ * 相対URLを絶対URLに変換する
  */
 export function toAbsoluteUrl(href: string, baseUrl: string): string {
   try {
-    const url = new URL(href, baseUrl);
-    return url.toString();
-  } catch {
+    return new URL(href, baseUrl).toString();
+  } catch (error) {
+    console.error(`[helpers] Error converting to absolute URL: ${href}`, error);
     return '';
   }
+}
+
+/**
+ * リンクテキストとターゲットテキストの関連性を確認する
+ */
+export function isLinkTextProper(linkText: string, targetText: string): boolean {
+  // 空のテキストは不適切
+  if (!linkText.trim() || !targetText.trim()) {
+    return false;
+  }
+
+  // テキストの正規化
+  const normalizedLinkText = normalizeLinkText(linkText);
+  const normalizedTargetText = normalizeTargetText(targetText);
+
+  // 完全一致の場合
+  if (normalizedLinkText === normalizedTargetText) {
+    return true;
+  }
+
+  // ターゲットテキストがリンクテキストを含む場合
+  if (normalizedTargetText.includes(normalizedLinkText)) {
+    return true;
+  }
+
+  // リンクテキストがターゲットテキストを含む場合
+  if (normalizedLinkText.includes(normalizedTargetText)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * 文字列の正規化を行う共通関数
+ */
+function normalizeText(text: string): string {
+  return text
+    // 全角英数字を半角に変換
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+    // 全角スペースを半角スペースに変換
+    .replace(/　/g, ' ')
+    // 連続するスペースを単一のスペースに
+    .replace(/\s+/g, ' ')
+    // 英数字を小文字に統一
+    .toLowerCase()
+    // 前後の空白を削除
+    .trim();
+}
+
+/**
+ * リンクテキストを正規化する
+ * - 末尾の「一覧」「トップ」「TOP」などを除去
+ * - 全角/半角の統一
+ * - スペースの正規化
+ */
+function normalizeLinkText(text: string): string {
+  // 末尾の特定のワードを除去するパターン
+  const suffixPattern = /[\s　]*(一覧|トップ|TOP|[Tt]op|[Ii]ndex)[\s　]*$/;
+  
+  return normalizeText(text
+    .replace(suffixPattern, '') // 末尾の特定ワードを除去
+  );
+}
+
+/**
+ * ターゲットテキスト（ページタイトルなど）を正規化する
+ * - 区切り文字以降を除去（「 | 」「 - 」など）
+ * - 全角/半角の統一
+ * - スペースの正規化
+ */
+function normalizeTargetText(text: string): string {
+  // 区切り文字以降を除去するパターン
+  const separatorPattern = /[\s　]*[|\-–—].*$/;
+  
+  return normalizeText(text
+    .replace(separatorPattern, '') // 区切り文字以降を除去
+  );
 }

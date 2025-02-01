@@ -39,7 +39,6 @@ function App() {
   }, [results, sortField, sortDirection]);
 
   const checkLinks = async () => {
-    console.log('Starting link check...');
     setIsChecking(true);
     setResults([]);
     setError(null);
@@ -47,15 +46,16 @@ function App() {
     const urls = urlInput
       .split('\n')
       .map(line => line.trim())
-      .filter(url => {
+      .filter(Boolean)
+      .map(url => {
         try {
-          new URL(url);
-          return true;
+          const urlObj = new URL(url);
+          return urlObj.toString();
         } catch {
-          console.warn(`Invalid URL skipped: ${url}`);
-          return false;
+          return null;
         }
-      });
+      })
+      .filter((url): url is string => url !== null);
 
     if (urls.length === 0) {
       setError('No valid URLs provided');
@@ -65,20 +65,20 @@ function App() {
 
     const crawler = new Crawler();
     const linkChecker = new LinkChecker();
-    const processedLinks = new Map<string, Set<string>>(); // URL -> Set<linkText>
+    const processedLinks = new Map<string, Set<string>>();
     const errors: Array<{url: string; error: string}> = [];
 
     try {
-      await Promise.all(urls.map(async pageUrl => {
+      for (const pageUrl of urls) {
         try {
           const links = await crawler.crawlPage(pageUrl);
-          await Promise.all(links.map(async link => {
-            const fullUrl = toAbsoluteUrl(link.href, pageUrl);
-            if (!fullUrl) return;
 
-            // 同じURLに対する同じリンクテキストをスキップ
+          for (const link of links) {
+            const fullUrl = toAbsoluteUrl(link.href, pageUrl);
+            if (!fullUrl) continue;
+
             const linkTexts = processedLinks.get(fullUrl) || new Set();
-            if (linkTexts.has(link.text)) return;
+            if (linkTexts.has(link.text)) continue;
             linkTexts.add(link.text);
             processedLinks.set(fullUrl, linkTexts);
 
@@ -93,41 +93,31 @@ function App() {
                 linkText: link.text,
                 titleOrTextNode: titleOrText,
                 judgment,
-                error: null
+                error: null,
+                html: link.html,
+                parentHtml: link.parentHtml
               }]);
 
             } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-              setResults(prev => [...prev, {
-                foundOn: pageUrl,
-                href: fullUrl,
-                statusCode: 0,
-                linkText: link.text,
-                titleOrTextNode: '',
-                judgment: 'error',
-                error: errorMessage
-              }]);
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              errors.push({ url: fullUrl, error: errorMessage });
             }
-          }));
+          }
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          errors.push({
-            url: pageUrl,
-            error: errorMessage
-          });
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          errors.push({ url: pageUrl, error: errorMessage });
         }
-      }));
+      }
+
+      if (errors.length > 0) {
+        setError(`Errors occurred while checking links:\n${errors.map(e => `${e.url}: ${e.error}`).join('\n')}`);
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setError(`Error checking links: ${errorMessage}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setError(`Failed to check links: ${errorMessage}`);
     } finally {
       setIsChecking(false);
-      if (errors.length > 0) {
-        setError(`Errors occurred while checking ${errors.length} pages`);
-        console.error('Errors:', errors);
-      }
       crawler.clearProcessedUrls();
-      linkChecker.clearCache();
     }
   };
 
@@ -263,13 +253,13 @@ function App() {
             </thead>
             <tbody>
               {sortedResults.map((result, index) => (
-                <tr key={index} className={result.error ? 'bg-red-50' : 'even:bg-gray-50'}>
+                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
                   <td className="px-4 py-2 break-all">
-                    <a href={result.href} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                    <a href={result.href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
                       {result.href}
                     </a>
                   </td>
-                  <td className="px-4 py-2 text-center">
+                  <td className="px-4 py-2">
                     <span className={`px-2 py-1 rounded ${
                       result.statusCode === 200 ? 'bg-green-100 text-green-800' :
                       result.statusCode === 404 ? 'bg-red-100 text-red-800' :
@@ -278,7 +268,22 @@ function App() {
                       {result.statusCode || 'Error'}
                     </span>
                   </td>
-                  <td className="px-4 py-2">{result.linkText}</td>
+                  <td className="px-4 py-2">
+                    {result.linkText || (
+                      <div className="text-gray-500 text-sm">
+                        <div className="font-mono bg-gray-100 p-2 rounded">
+                          <p className="mb-2">Link HTML:</p>
+                          <pre className="whitespace-pre-wrap">{result.html}</pre>
+                          {result.parentHtml && (
+                            <>
+                              <p className="mt-4 mb-2">Parent HTML:</p>
+                              <pre className="whitespace-pre-wrap">{result.parentHtml}</pre>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-2">{result.titleOrTextNode}</td>
                   <td className="px-4 py-2">
                     <span className={`px-2 py-1 rounded ${

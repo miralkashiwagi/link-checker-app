@@ -3,6 +3,8 @@ export interface Link {
   text: string;
   ariaLabel?: string;
   imgAlts?: string[];
+  html?: string;
+  parentHtml?: string;
 }
 
 export interface CheckResult {
@@ -13,6 +15,8 @@ export interface CheckResult {
   titleOrTextNode: string;
   judgment: string;
   error?: string | null;
+  html?: string;
+  parentHtml?: string;
 }
 
 export interface CrawlerResult {
