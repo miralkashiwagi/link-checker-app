@@ -6,6 +6,7 @@ export interface Link {
   imgAlts?: string[];
   html?: string;
   parentHtml?: string;
+  isAnchor?: boolean;
 }
 
 export interface CheckResult {
@@ -19,6 +20,7 @@ export interface CheckResult {
   error?: string | null;
   html?: string;
   parentHtml?: string;
+  isAnchor: boolean;
 }
 
 export interface CrawlerResult {

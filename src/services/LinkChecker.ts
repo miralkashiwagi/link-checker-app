@@ -157,8 +157,9 @@ export class LinkChecker {
       return 'dummy';
     }
 
-    if (statusCode !== 200) {
-      return 'warning';
+    // ステータスコード 200番台・300番台以外をエラー
+    if (statusCode < 200 || statusCode >= 400) {
+      return 'error';
     }
 
     if (!isLinkTextProper(linkText, titleOrText)) {

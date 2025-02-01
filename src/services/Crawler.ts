@@ -114,12 +114,15 @@ export class Crawler {
           if (!href && originalHref !== '' && originalHref !== '#') return null;
 
           const text = this.getLinkText(a);
+          const isAnchor = originalHref.startsWith('#') || href.includes('#');
+
           const link: Link = {
             href,
             originalHref,
             text,
             html: a.outerHTML,
-            parentHtml: a.parentElement?.outerHTML
+            parentHtml: a.parentElement?.outerHTML,
+            isAnchor
           };
           
           const ariaLabel = a.getAttribute('aria-label')?.trim();

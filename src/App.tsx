@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { FileText, Link as LinkIcon, ArrowUpDown } from 'lucide-react';
+import { FileText, Link as LinkIcon, ArrowUpDown, Anchor } from 'lucide-react';
 import { Crawler } from './services/Crawler';
 import { LinkChecker } from './services/LinkChecker';
 import { toAbsoluteUrl } from './utils/helpers';
@@ -15,6 +15,7 @@ function App() {
   const [sortField, setSortField] = useState<SortField>('statusCode');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [error, setError] = useState<string | null>(null);
+  const [showOnlyIssues, setShowOnlyIssues] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSort = useCallback((field: SortField) => {
@@ -24,8 +25,25 @@ function App() {
     });
   }, [sortField]);
 
+  const filteredResults = React.useMemo(() => {
+    if (!showOnlyIssues) return results;
+
+    // 問題のあるリンクのみをフィルタリング
+    const processedUrls = new Set<string>();
+    return results.filter(result => {
+      if (result.judgment === 'ok') return false;
+      
+      // 同じURLは最初の出現のみを保持
+      const key = `${result.href}-${result.linkText}`;
+      if (processedUrls.has(key)) return false;
+      processedUrls.add(key);
+      
+      return true;
+    });
+  }, [results, showOnlyIssues]);
+
   const sortedResults = React.useMemo(() => {
-    return [...results].sort((a, b) => {
+    return [...filteredResults].sort((a, b) => {
       const direction = sortDirection === 'asc' ? 1 : -1;
       const aValue = a[sortField];
       const bValue = b[sortField];
@@ -36,7 +54,18 @@ function App() {
       
       return String(aValue).localeCompare(String(bValue)) * direction;
     });
-  }, [results, sortField, sortDirection]);
+  }, [filteredResults, sortField, sortDirection]);
+
+  // URLごとにグループ化された結果
+  const groupedResults = React.useMemo(() => {
+    const groups = new Map<string, CheckResult[]>();
+    for (const result of sortedResults) {
+      const group = groups.get(result.foundOn) || [];
+      group.push(result);
+      groups.set(result.foundOn, group);
+    }
+    return groups;
+  }, [sortedResults]);
 
   const stopChecking = useCallback(() => {
     if (abortControllerRef.current) {
@@ -126,7 +155,8 @@ function App() {
                 judgment,
                 error: null,
                 html: link.html,
-                parentHtml: link.parentHtml
+                parentHtml: link.parentHtml,
+                isAnchor: link.isAnchor || false
               }]);
 
             } catch (error) {
@@ -221,6 +251,16 @@ function App() {
         >
           Download CSV
         </button>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showOnlyIssues}
+            onChange={e => setShowOnlyIssues(e.target.checked)}
+            className="form-checkbox h-5 w-5 text-blue-600"
+          />
+          <span>Show only issues</span>
+        </label>
       </div>
 
       {error && (
@@ -229,113 +269,111 @@ function App() {
         </div>
       )}
 
-      {results.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('href')}>
-                  <div className="flex items-center gap-1">
-                    <LinkIcon size={16} />
-                    URL
-                    {sortField === 'href' && (
-                      <ArrowUpDown
-                        size={16}
-                        className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                      />
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('statusCode')}>
-                  <div className="flex items-center gap-1">
-                    Status
-                    {sortField === 'statusCode' && (
-                      <ArrowUpDown
-                        size={16}
-                        className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                      />
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('linkText')}>
-                  <div className="flex items-center gap-1">
-                    Link Text
-                    {sortField === 'linkText' && (
-                      <ArrowUpDown
-                        size={16}
-                        className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                      />
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('titleOrTextNode')}>
-                  <div className="flex items-center gap-1">
-                    <FileText size={16} />
-                    Title/Text
-                    {sortField === 'titleOrTextNode' && (
-                      <ArrowUpDown
-                        size={16}
-                        className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                      />
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('judgment')}>
-                  <div className="flex items-center gap-1">
-                    Judgment
-                    {sortField === 'judgment' && (
-                      <ArrowUpDown
-                        size={16}
-                        className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                      />
-                    )}
-                  </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedResults.map((result, index) => (
-                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                  <td className="px-4 py-2 break-all text-xs">
-                    <a href={result.href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                      {result.href}
-                    </a>
-                  </td>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-1 rounded ${
-                      result.statusCode === 200 ? 'bg-green-100 text-green-800' :
-                      result.statusCode === 404 ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {result.statusCode || 'Error'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2">
-                    {result.linkText || (
-                      <div className="text-gray-500 text-sm">
-                        <div className="font-mono bg-gray-100 p-2 rounded ">
-                          <p className="mb-2">Link HTML:</p>
-                          <pre className="whitespace-pre-wrap">{result.html}</pre>
-                        </div>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">{result.titleOrTextNode}</td>
-                  <td className={`px-4 py-2 ${
-                    result.judgment === 'warning' ? 'text-yellow-600 font-bold' :
-                    result.judgment === 'review' ? 'text-orange-600 font-bold' :
-                    result.judgment === 'empty' ? 'text-red-600 font-bold' :
-                    result.judgment === 'dummy' ? 'text-purple-600 font-bold' :
-                    result.judgment === 'ok' ? 'text-green-600' : ''
-                  }`}>
-                    {result.judgment}
-                  </td>
+      {Array.from(groupedResults.entries()).map(([pageUrl, pageResults]) => (
+        <div key={pageUrl} className="mb-8">
+          <h2 className="text-xl font-bold mb-4">
+            <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+              {pageUrl}
+            </a>
+          </h2>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white border border-gray-200">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('href')}>
+                    <div className="flex items-center gap-1">
+                      URL
+                      {sortField === 'href' && (
+                        <ArrowUpDown
+                          size={16}
+                          className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        />
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('statusCode')}>
+                    <div className="flex items-center gap-1">
+                      Status
+                      {sortField === 'statusCode' && (
+                        <ArrowUpDown
+                          size={16}
+                          className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        />
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('linkText')}>
+                    <div className="flex items-center gap-1">
+                      Link Text
+                      {sortField === 'linkText' && (
+                        <ArrowUpDown
+                          size={16}
+                          className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        />
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-4 py-2">Title/Text Node</th>
+                  <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('judgment')}>
+                    <div className="flex items-center gap-1">
+                      Judgment
+                      {sortField === 'judgment' && (
+                        <ArrowUpDown
+                          size={16}
+                          className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        />
+                      )}
+                    </div>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pageResults.map((result, index) => (
+                  <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                    <td className="px-4 py-2 break-all text-xs">
+                      <a href={result.href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                        {result.href}
+                      </a>
+                    </td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-1 rounded ${
+                        result.statusCode === 200 ? 'bg-green-100 text-green-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {result.statusCode}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      {result.isAnchor && (
+                        <Anchor size={16} className="inline-block mr-1 text-gray-500" />
+                      )}
+                      {result.linkText || (
+                        <div className="text-gray-500 text-sm">
+                          <div className="font-mono bg-gray-100 p-2 rounded">
+                            <p className="mb-2">Link HTML:</p>
+                            <pre className="whitespace-pre-wrap">{result.html}</pre>
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">{result.titleOrTextNode}</td>
+                    <td className={`px-4 py-2 ${
+                      result.judgment === 'error' ? 'text-red-600 font-bold' :
+                      result.judgment === 'review' ? 'text-orange-600 font-bold' :
+                      result.judgment === 'empty' ? 'text-red-600 font-bold' :
+                      result.judgment === 'dummy' ? 'text-purple-600 font-bold' :
+                      result.judgment === 'ok' ? 'text-green-600' : ''
+                    }`}>
+                      {result.judgment}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }
