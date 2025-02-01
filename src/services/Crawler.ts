@@ -15,16 +15,14 @@ export class Crawler {
 
   async crawlPage(url: string): Promise<Link[]> {
     try {
+      this.baseUrl = url;
       if (this.processedUrls.has(url)) {
         return [];
       }
-
-      this.baseUrl = url;
-      const html = await this.getHtml(url);
-      const links = this.extractLinks(html);
-      
       this.processedUrls.add(url);
-      return links;
+
+      const html = await this.getHtml(url);
+      return this.extractLinks(html);
     } catch (error) {
       throw error;
     }
@@ -33,11 +31,9 @@ export class Crawler {
   private async getHtml(url: string): Promise<string> {
     try {
       const result = await window.electronAPI.fetchUrl(url);
-      
       if (!result.ok) {
         throw new Error(result.error || `HTTP error! status: ${result.status}`);
       }
-      
       return result.text || '';
     } catch (error) {
       throw error;
@@ -72,12 +68,10 @@ export class Crawler {
           const resolvedUrl = new URL(href, this.baseUrl);
           return resolvedUrl.toString();
         } catch (error) {
-          console.error(`[Crawler] Error resolving relative URL ${href}:`, error);
           return '';
         }
       }
     } catch (error) {
-      console.error(`[Crawler] Error resolving URL ${href}:`, error);
       return '';
     }
   }
@@ -86,6 +80,10 @@ export class Crawler {
     // 1. aria-labelを優先
     const ariaLabel = element.getAttribute('aria-label')?.trim();
     if (ariaLabel) return ariaLabel;
+
+    // title属性をチェック
+    const title = element.getAttribute('title')?.trim(); 
+    if (title) return title;
 
     // 2. img要素のalt属性をチェック
     const imgAlts = Array.from(element.getElementsByTagName('img'))
@@ -111,12 +109,14 @@ export class Crawler {
       const doc = this.parser.parseFromString(html, 'text/html');
       return Array.from(doc.getElementsByTagName('a'))
         .map(a => {
-          const href = this.resolveUrl(a.getAttribute('href') || '');
-          if (!href) return null;
+          const originalHref = a.getAttribute('href') || '';
+          const href = this.resolveUrl(originalHref);
+          if (!href && originalHref !== '' && originalHref !== '#') return null;
 
           const text = this.getLinkText(a);
           const link: Link = {
             href,
+            originalHref,
             text,
             html: a.outerHTML,
             parentHtml: a.parentElement?.outerHTML
@@ -135,7 +135,6 @@ export class Crawler {
         })
         .filter((link): link is Link => link !== null);
     } catch (error) {
-      console.error('[Crawler] Error extracting links:', error);
       return [];
     }
   }
@@ -143,6 +142,5 @@ export class Crawler {
   clearProcessedUrls(): void {
     this.processedUrls.clear();
     this.baseUrl = '';
-    console.log('[Crawler] Processed URLs cleared');
   }
 }

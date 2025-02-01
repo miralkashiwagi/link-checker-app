@@ -1,5 +1,6 @@
 export interface Link {
   href: string;
+  originalHref: string;
   text: string;
   ariaLabel?: string;
   imgAlts?: string[];
@@ -10,6 +11,7 @@ export interface Link {
 export interface CheckResult {
   foundOn: string;
   href: string;
+  originalHref: string;
   statusCode: number;
   linkText: string;
   titleOrTextNode: string;

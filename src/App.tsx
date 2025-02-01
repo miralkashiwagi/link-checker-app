@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { FileText, Link as LinkIcon, ArrowUpDown } from 'lucide-react';
 import { Crawler } from './services/Crawler';
 import { LinkChecker } from './services/LinkChecker';
@@ -15,11 +15,11 @@ function App() {
   const [sortField, setSortField] = useState<SortField>('statusCode');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleSort = useCallback((field: SortField) => {
     setSortField(field);
     setSortDirection(prev => {
-      // 同じフィールドをクリックした場合は昇順/降順を切り替え
       return field === sortField ? (prev === 'asc' ? 'desc' : 'asc') : 'asc';
     });
   }, [sortField]);
@@ -38,10 +38,30 @@ function App() {
     });
   }, [results, sortField, sortDirection]);
 
+  const stopChecking = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsChecking(false);
+      setError('Link checking was cancelled');
+    }
+  }, []);
+
   const checkLinks = async () => {
     setIsChecking(true);
     setResults([]);
     setError(null);
+    abortControllerRef.current = new AbortController();
+
+    const delay = (ms: number) => {
+      return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(resolve, ms);
+        abortControllerRef.current?.signal.addEventListener('abort', () => {
+          clearTimeout(timeoutId);
+          reject(new Error('Cancelled'));
+        });
+      });
+    };
 
     const urls = urlInput
       .split('\n')
@@ -71,9 +91,18 @@ function App() {
     try {
       for (const pageUrl of urls) {
         try {
+          if (abortControllerRef.current?.signal.aborted) {
+            throw new Error('Cancelled');
+          }
+
+          await delay(2000);
           const links = await crawler.crawlPage(pageUrl);
 
           for (const link of links) {
+            if (abortControllerRef.current?.signal.aborted) {
+              throw new Error('Cancelled');
+            }
+
             const fullUrl = toAbsoluteUrl(link.href, pageUrl);
             if (!fullUrl) continue;
 
@@ -83,12 +112,14 @@ function App() {
             processedLinks.set(fullUrl, linkTexts);
 
             try {
+              await delay(1000);
               const [statusCode, titleOrText] = await linkChecker.checkLink(fullUrl);
-              const judgment = linkChecker.judgeLink(link.text, titleOrText, statusCode);
+              const judgment = linkChecker.judgeLink(link.text, titleOrText, statusCode, link.originalHref);
 
               setResults(prev => [...prev, {
                 foundOn: pageUrl,
                 href: fullUrl,
+                originalHref: link.originalHref,
                 statusCode,
                 linkText: link.text,
                 titleOrTextNode: titleOrText,
@@ -99,11 +130,13 @@ function App() {
               }]);
 
             } catch (error) {
+              if (error.message === 'Cancelled') throw error;
               const errorMessage = error instanceof Error ? error.message : String(error);
               errors.push({ url: fullUrl, error: errorMessage });
             }
           }
         } catch (error) {
+          if (error.message === 'Cancelled') throw error;
           const errorMessage = error instanceof Error ? error.message : String(error);
           errors.push({ url: pageUrl, error: errorMessage });
         }
@@ -113,41 +146,41 @@ function App() {
         setError(`Errors occurred while checking links:\n${errors.map(e => `${e.url}: ${e.error}`).join('\n')}`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      setError(`Failed to check links: ${errorMessage}`);
+      if (error.message !== 'Cancelled') {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        setError(`Failed to check links: ${errorMessage}`);
+      }
     } finally {
       setIsChecking(false);
+      abortControllerRef.current = null;
       crawler.clearProcessedUrls();
     }
   };
 
   const downloadCsv = useCallback(() => {
-    const headers = ['Found On', 'URL', 'Status', 'Link Text', 'Title/Text', 'Judgment', 'Error'];
-    const rows = sortedResults.map(r => [
-      r.foundOn,
-      r.href,
-      r.statusCode,
-      r.linkText,
-      r.titleOrTextNode,
-      r.judgment,
-      r.error || ''
-    ]);
+    const csvContent = [
+      ['Found On', 'Link Text', 'URL', 'Original URL', 'Status Code', 'Title/Text', 'Judgment'],
+      ...results.map(result => [
+        result.foundOn,
+        result.linkText,
+        result.href,
+        result.originalHref,
+        result.statusCode,
+        result.titleOrTextNode,
+        result.judgment
+      ])
+    ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
 
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `link-check-results-${new Date().toISOString()}.csv`);
+    link.setAttribute('download', 'link-checker-results.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [sortedResults]);
+  }, [results]);
 
   return (
     <div className="container mx-auto p-4">
@@ -171,6 +204,15 @@ function App() {
         >
           {isChecking ? 'Checking...' : 'Check Links'}
         </button>
+
+        {isChecking && (
+          <button
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            onClick={stopChecking}
+          >
+            Stop Checking
+          </button>
+        )}
 
         <button
           className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
@@ -254,7 +296,7 @@ function App() {
             <tbody>
               {sortedResults.map((result, index) => (
                 <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                  <td className="px-4 py-2 break-all">
+                  <td className="px-4 py-2 break-all text-xs">
                     <a href={result.href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
                       {result.href}
                     </a>
@@ -271,28 +313,22 @@ function App() {
                   <td className="px-4 py-2">
                     {result.linkText || (
                       <div className="text-gray-500 text-sm">
-                        <div className="font-mono bg-gray-100 p-2 rounded">
+                        <div className="font-mono bg-gray-100 p-2 rounded ">
                           <p className="mb-2">Link HTML:</p>
                           <pre className="whitespace-pre-wrap">{result.html}</pre>
-                          {result.parentHtml && (
-                            <>
-                              <p className="mt-4 mb-2">Parent HTML:</p>
-                              <pre className="whitespace-pre-wrap">{result.parentHtml}</pre>
-                            </>
-                          )}
                         </div>
                       </div>
                     )}
                   </td>
                   <td className="px-4 py-2">{result.titleOrTextNode}</td>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-1 rounded ${
-                      result.judgment === 'appropriate' ? 'bg-green-100 text-green-800' :
-                      result.judgment === 'broken' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {result.judgment}
-                    </span>
+                  <td className={`px-4 py-2 ${
+                    result.judgment === 'warning' ? 'text-yellow-600 font-bold' :
+                    result.judgment === 'review' ? 'text-orange-600 font-bold' :
+                    result.judgment === 'empty' ? 'text-red-600 font-bold' :
+                    result.judgment === 'dummy' ? 'text-purple-600 font-bold' :
+                    result.judgment === 'ok' ? 'text-green-600' : ''
+                  }`}>
+                    {result.judgment}
                   </td>
                 </tr>
               ))}

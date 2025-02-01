@@ -146,16 +146,26 @@ export class LinkChecker {
     }
   }
 
-  judgeLink(linkText: string, titleOrText: string, statusCode: number): string {
+  judgeLink(linkText: string, titleOrText: string, statusCode: number, href: string): string {
+    // 空のhrefをチェック
+    if (href === '') {
+      return 'empty';
+    }
+
+    // ダミーリンク（#）をチェック
+    if (href === '#') {
+      return 'dummy';
+    }
+
     if (statusCode !== 200) {
-      return 'broken';
+      return 'warning';
     }
 
     if (!isLinkTextProper(linkText, titleOrText)) {
-      return 'needs review';
+      return 'review';
     }
 
-    return 'appropriate';
+    return 'ok';
   }
 
   clearCache(): void {
