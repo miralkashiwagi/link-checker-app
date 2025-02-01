@@ -43,14 +43,3 @@ npm run electron:build
 
 ビルドされたアプリケーションは `release` ディレクトリに生成されます。
 
-### アプリケーションの実行
-ビルド後、以下のコマンドでアプリケーションを実行できます：
-
-```bash
-npm run preview
-```
-
-## プロジェクト構成
-- `src/` - Reactアプリケーションのソースコード
-- `electron/` - Electron関連のソースコード
-- `public/` - 静的アセット
