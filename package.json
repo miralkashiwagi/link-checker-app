@@ -2,6 +2,11 @@
   "name": "link-checker-app",
   "private": true,
   "version": "0.1.0",
+  "description": "An application to check and validate links in web pages",
+  "author": {
+    "name": "Your Name"
+  },
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,13 +28,14 @@
     "files": [
       "dist/**/*",
       "electron/**/*"
-    ]
+    ],
+    "directories": {
+      "output": "release"
+    }
   },
   "dependencies": {
     "node-fetch": "^2.6.1",
     "jsdom": "^20.0.0",
-    "electron": "^34.0.2",
-    "electron-builder": "^25.1.8",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -41,6 +47,8 @@
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
     "cross-env": "^7.0.3",
+    "electron": "^34.0.2",
+    "electron-builder": "^25.1.8",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
