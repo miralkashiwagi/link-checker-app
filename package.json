@@ -26,6 +26,8 @@
     ]
   },
   "dependencies": {
+    "node-fetch": "^2.6.1",
+    "jsdom": "^20.0.0",
     "electron": "^34.0.2",
     "electron-builder": "^25.1.8",
     "lucide-react": "^0.344.0",
