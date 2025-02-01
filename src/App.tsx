@@ -17,15 +17,12 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   const handleSort = useCallback((field: SortField) => {
-    setSortField(prev => {
-      if (prev === field) {
-        setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
-      } else {
-        setSortDirection('asc');
-      }
-      return field;
+    setSortField(field);
+    setSortDirection(prev => {
+      // 同じフィールドをクリックした場合は昇順/降順を切り替え
+      return field === sortField ? (prev === 'asc' ? 'desc' : 'asc') : 'asc';
     });
-  }, []);
+  }, [sortField]);
 
   const sortedResults = React.useMemo(() => {
     return [...results].sort((a, b) => {
@@ -68,7 +65,7 @@ function App() {
 
     const crawler = new Crawler();
     const linkChecker = new LinkChecker();
-    const processedUrls = new Set<string>();
+    const processedLinks = new Map<string, Set<string>>(); // URL -> Set<linkText>
     const errors: Array<{url: string; error: string}> = [];
 
     try {
@@ -77,7 +74,13 @@ function App() {
           const links = await crawler.crawlPage(pageUrl);
           await Promise.all(links.map(async link => {
             const fullUrl = toAbsoluteUrl(link.href, pageUrl);
-            if (!fullUrl || processedUrls.has(fullUrl + link.text)) return;
+            if (!fullUrl) return;
+
+            // 同じURLに対する同じリンクテキストをスキップ
+            const linkTexts = processedLinks.get(fullUrl) || new Set();
+            if (linkTexts.has(link.text)) return;
+            linkTexts.add(link.text);
+            processedLinks.set(fullUrl, linkTexts);
 
             try {
               const [statusCode, titleOrText] = await linkChecker.checkLink(fullUrl);
@@ -93,7 +96,6 @@ function App() {
                 error: null
               }]);
 
-              processedUrls.add(fullUrl + link.text);
             } catch (error) {
               const errorMessage = error instanceof Error ? error.message : 'Unknown error';
               setResults(prev => [...prev, {
@@ -204,32 +206,57 @@ function App() {
                   <div className="flex items-center gap-1">
                     <LinkIcon size={16} />
                     URL
-                    <ArrowUpDown size={16} />
+                    {sortField === 'href' && (
+                      <ArrowUpDown
+                        size={16}
+                        className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                      />
+                    )}
                   </div>
                 </th>
                 <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('statusCode')}>
                   <div className="flex items-center gap-1">
                     Status
-                    <ArrowUpDown size={16} />
+                    {sortField === 'statusCode' && (
+                      <ArrowUpDown
+                        size={16}
+                        className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                      />
+                    )}
                   </div>
                 </th>
                 <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('linkText')}>
                   <div className="flex items-center gap-1">
                     Link Text
-                    <ArrowUpDown size={16} />
+                    {sortField === 'linkText' && (
+                      <ArrowUpDown
+                        size={16}
+                        className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                      />
+                    )}
                   </div>
                 </th>
                 <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('titleOrTextNode')}>
                   <div className="flex items-center gap-1">
                     <FileText size={16} />
                     Title/Text
-                    <ArrowUpDown size={16} />
+                    {sortField === 'titleOrTextNode' && (
+                      <ArrowUpDown
+                        size={16}
+                        className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                      />
+                    )}
                   </div>
                 </th>
                 <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('judgment')}>
                   <div className="flex items-center gap-1">
                     Judgment
-                    <ArrowUpDown size={16} />
+                    {sortField === 'judgment' && (
+                      <ArrowUpDown
+                        size={16}
+                        className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                      />
+                    )}
                   </div>
                 </th>
               </tr>
