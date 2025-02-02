@@ -19,6 +19,16 @@ export function isLinkTextProper(linkText: string, targetText: string): boolean 
     return false;
   }
 
+  // URLとリンクテキストが一致する場合
+  try {
+    const urlObj = new URL(linkText);
+    if (urlObj.toString() === linkText) {
+      return true;
+    }
+  } catch (error) {
+    // URLのパースに失敗した場合は無視して続行
+  }
+
   // テキストの正規化
   const normalizedLinkText = normalizeLinkText(linkText);
   const normalizedTargetText = normalizeTargetText(targetText);
