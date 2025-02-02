@@ -179,7 +179,14 @@ function App() {
               await delay(1000);
               // リンクの状態をチェック
               const [statusCode, titleOrText] = await linkChecker.checkLink(fullUrl);
-              const judgment = linkChecker.judgeLink(link.text, titleOrText, statusCode, link.originalHref);
+              const judgment = linkChecker.judgeLink(
+                link.text,
+                titleOrText,
+                statusCode,
+                link.originalHref,
+                fullUrl,
+                pageUrl
+              );
 
               // 結果を保存
               setResults(prev => [...prev, {
@@ -422,12 +429,15 @@ function App() {
                         {result.judgment}
                       </td>
                       <td className="px-4 py-2">
-                        {result.isAnchor && (
+                        {(result.isAnchor && result.originalHref !== "#") && (
                           <Anchor size={16} className="inline-block mr-1 text-gray-500" />
                         )}
-                        {result.linkText || (
-                          <div className="text-gray-500 text-sm">
-                            <div className="font-mono bg-gray-100 p-2 rounded">
+                        {result.linkText && (
+                          <div>{result.linkText}</div>
+                        )}
+                        {(!result.linkText || result.originalHref === "" || result.originalHref === "#") && (
+                          <div className="text-gray-500 text-xs leading-none">
+                            <div className="font-mono bg-gray-100 p-1 rounded">
                               <p className="mb-2">Link HTML:</p>
                               <pre className="whitespace-pre-wrap">{result.html}</pre>
                             </div>

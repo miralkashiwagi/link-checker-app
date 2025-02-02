@@ -149,7 +149,7 @@ export class LinkChecker {
     }
   }
 
-  judgeLink(linkText: string, titleOrText: string, statusCode: number, href: string): string {
+  judgeLink(linkText: string, titleOrText: string, statusCode: number, href: string, fullUrl: string, foundOn: string): string {
     // 空のhrefをチェック
     if (href === '') {
       return 'empty';
@@ -158,6 +158,20 @@ export class LinkChecker {
     // ダミーリンク（#）をチェック
     if (href === '#') {
       return 'dummy';
+    }
+
+    try {
+      // #topリンクの特別処理
+      const hrefUrl = new URL(fullUrl);
+      const currentUrl = new URL(foundOn);
+      
+      if (hrefUrl.hash === '#top' && 
+          hrefUrl.origin === currentUrl.origin && 
+          hrefUrl.pathname === currentUrl.pathname) {
+        return 'ok';
+      }
+    } catch (error) {
+      // URLのパースに失敗した場合は無視して続行
     }
 
     // ステータスコード 200番台・300番台以外をエラー
