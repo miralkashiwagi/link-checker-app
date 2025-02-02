@@ -43,10 +43,14 @@ function App() {
     // 問題のあるリンクのみをフィルタリング
     const processedUrls = new Set<string>();
     return results.filter(result => {
+
       if (result.judgment === 'ok') return false;
       
-      // 同じURLは最初の出現のみを保持
-      const key = `${result.href}-${result.linkText}`;
+      // リンクテキストが空の場合は、HTML構造も含めて比較
+      const key = (!result.linkText)
+        ? `${result.href}-${result.html}`
+        : `${result.href}-${result.linkText}`;
+
       if (processedUrls.has(key)) return false;
       processedUrls.add(key);
       
@@ -163,10 +167,11 @@ function App() {
             const fullUrl = toAbsoluteUrl(link.href, pageUrl);
             if (!fullUrl) continue;
 
-            // 同じURLと同じリンクテキストの組み合わせは1回だけ処理
+            // リンクテキストが空の場合は、HTMLの構造も含めて比較
+            const linkKey = !link.text ? `${link.html}` : link.text;
             const linkTexts = processedLinks.get(fullUrl) || new Set();
-            if (linkTexts.has(link.text)) continue;
-            linkTexts.add(link.text);
+            if (linkTexts.has(linkKey)) continue;
+            linkTexts.add(linkKey);
             processedLinks.set(fullUrl, linkTexts);
 
             try {
@@ -342,6 +347,17 @@ function App() {
                       )}
                     </div>
                   </th>
+                  <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('judgment')}>
+                    <div className="flex items-center gap-1">
+                      Judgment
+                      {sortField === 'judgment' && (
+                        <ArrowUpDown
+                          size={16}
+                          className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                        />
+                      )}
+                    </div>
+                  </th>
                   <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('linkText')}>
                     <div className="flex items-center gap-1">
                       Link Text
@@ -354,17 +370,7 @@ function App() {
                     </div>
                   </th>
                   <th className="px-4 py-2">Title/Text Node</th>
-                  <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('judgment')}>
-                    <div className="flex items-center gap-1">
-                      Judgment
-                      {sortField === 'judgment' && (
-                        <ArrowUpDown
-                          size={16}
-                          className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                        />
-                      )}
-                    </div>
-                  </th>
+
                 </tr>
               </thead>
               <tbody>
@@ -383,6 +389,15 @@ function App() {
                         {result.statusCode}
                       </span>
                     </td>
+                    <td className={`px-4 py-2 ${
+                      result.judgment === 'error' ? 'text-red-600 font-bold' :
+                      result.judgment === 'review' ? 'text-yellow-600 font-bold' :
+                      result.judgment === 'empty' ? 'text-red-600 font-bold' :
+                      result.judgment === 'dummy' ? 'text-purple-600 font-bold' :
+                      result.judgment === 'ok' ? 'text-green-600' : ''
+                    }`}>
+                      {result.judgment}
+                    </td>
                     <td className="px-4 py-2">
                       {result.isAnchor && (
                         <Anchor size={16} className="inline-block mr-1 text-gray-500" />
@@ -397,15 +412,7 @@ function App() {
                       )}
                     </td>
                     <td className="px-4 py-2">{result.titleOrTextNode}</td>
-                    <td className={`px-4 py-2 ${
-                      result.judgment === 'error' ? 'text-red-600 font-bold' :
-                      result.judgment === 'review' ? 'text-yellow-600 font-bold' :
-                      result.judgment === 'empty' ? 'text-red-600 font-bold' :
-                      result.judgment === 'dummy' ? 'text-purple-600 font-bold' :
-                      result.judgment === 'ok' ? 'text-green-600' : ''
-                    }`}>
-                      {result.judgment}
-                    </td>
+
                   </tr>
                 ))}
               </tbody>
