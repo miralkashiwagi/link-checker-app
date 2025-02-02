@@ -104,11 +104,9 @@ async function getTitleOrAnchorText(url) {
 
 ipcMain.handle('fetch-url', async (event, url) => {
   try {
-    const response = await nodeFetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
+    const response = await nodeFetch(url, {
+      redirect: 'follow', // リダイレクトを自動的に追跡
+    });
     const html = await response.text();
     const dom = new JSDOM(html, { url });
     const document = dom.window.document;
@@ -116,18 +114,30 @@ ipcMain.handle('fetch-url', async (event, url) => {
     const title = titleElement?.textContent || 'No title found';
 
     return {
-      ok: true,
+      ok: response.ok,
       status: response.status,
       text: html,
-      title: title
+      title: title,
+      redirected: response.redirected,
+      redirectUrl: response.url // 最終的なURL
     };
   } catch (error) {
+    // エラーオブジェクトからステータスコードを取得
+    let status = 0;
+    if (error.name === 'FetchError' && error.code === 'ENOTFOUND') {
+      status = 404; // DNSエラーなど
+    } else if (error.response) {
+      status = error.response.status; // HTTPエラーの場合
+    }
+
     return {
       ok: false,
-      status: 0,
+      status: status,
       error: error.message,
       text: '',
-      title: 'Error: ' + error.message
+      title: 'Error: ' + error.message,
+      redirected: false,
+      redirectUrl: null
     };
   }
 });

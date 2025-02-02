@@ -3,7 +3,7 @@ import { CacheEntry } from '../types';
 
 export class LinkChecker {
   private cache = new Map<string, CacheEntry>();
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5分
+  private readonly CACHE_DURATION = 1 * 60 * 1000; // 1分
   private readonly parser = new DOMParser();
 
   private isAnchorLink(url: string): boolean {
@@ -64,13 +64,16 @@ export class LinkChecker {
         throw new Error('Unsupported protocol');
       }
 
+
       const isAnchor = this.isAnchorLink(url);
       const targetUrl = isAnchor ? this.getBaseUrl(url) : url;
       
       const response = await window.electronAPI.fetchUrl(targetUrl);
-      return response.status || 404;
+      // レスポンスのステータスコードをそのまま返す（undefinedの場合は0）
+      return response.status ?? 0;
     } catch (error) {
-      return 404;
+      // エラー時は0を返す
+      return 0;
     }
   }
 
@@ -125,9 +128,9 @@ export class LinkChecker {
   async getTitleOrAnchorText(url: string): Promise<string> {
     try {
       const response = await window.electronAPI.fetchUrl(url);
-      if (!response.ok || !response.text) {
-        return 'No content found';
-      }
+      // if (!response.ok || !response.text) {
+      //   return 'No content found';
+      // }
 
       const isAnchor = this.isAnchorLink(url);
       if (isAnchor) {

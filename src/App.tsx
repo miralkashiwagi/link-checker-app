@@ -5,19 +5,30 @@ import { LinkChecker } from './services/LinkChecker';
 import { toAbsoluteUrl } from './utils/helpers';
 import { CheckResult } from './types';
 
+// ソート対象のフィールドの型定義
 type SortField = 'statusCode' | 'linkText' | 'href' | 'judgment' | 'titleOrTextNode';
+// ソートの方向（昇順・降順）の型定義
 type SortDirection = 'asc' | 'desc';
 
 function App() {
+  // 入力されたURLを管理するstate
   const [urlInput, setUrlInput] = useState<string>('');
+  // リンクチェックの結果を管理するstate
   const [results, setResults] = useState<CheckResult[]>([]);
+  // チェック中かどうかを管理するstate
   const [isChecking, setIsChecking] = useState(false);
+  // 現在のソートフィールドを管理するstate
   const [sortField, setSortField] = useState<SortField>('statusCode');
+  // ソートの方向を管理するstate
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  // エラーメッセージを管理するstate
   const [error, setError] = useState<string | null>(null);
+  // 問題のあるリンクのみを表示するかどうかを管理するstate
   const [showOnlyIssues, setShowOnlyIssues] = useState(false);
+  // 非同期処理のキャンセル用のAbortControllerを管理するref
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // ソートフィールドが変更された時の処理
   const handleSort = useCallback((field: SortField) => {
     setSortField(field);
     setSortDirection(prev => {
@@ -25,6 +36,7 @@ function App() {
     });
   }, [sortField]);
 
+  // 問題のあるリンクのみをフィルタリングする処理
   const filteredResults = React.useMemo(() => {
     if (!showOnlyIssues) return results;
 
@@ -42,21 +54,24 @@ function App() {
     });
   }, [results, showOnlyIssues]);
 
+  // 結果をソートする処理
   const sortedResults = React.useMemo(() => {
     return [...filteredResults].sort((a, b) => {
       const direction = sortDirection === 'asc' ? 1 : -1;
       const aValue = a[sortField];
       const bValue = b[sortField];
       
+      // 数値の場合は数値としてソート
       if (typeof aValue === 'number' && typeof bValue === 'number') {
         return (aValue - bValue) * direction;
       }
       
+      // 文字列の場合は文字列としてソート
       return String(aValue).localeCompare(String(bValue)) * direction;
     });
   }, [filteredResults, sortField, sortDirection]);
 
-  // URLごとにグループ化された結果
+  // URLごとに結果をグループ化する処理
   const groupedResults = React.useMemo(() => {
     const groups = new Map<string, CheckResult[]>();
     for (const result of sortedResults) {
@@ -67,6 +82,7 @@ function App() {
     return groups;
   }, [sortedResults]);
 
+  // リンクチェックを停止する処理
   const stopChecking = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -76,12 +92,15 @@ function App() {
     }
   }, []);
 
+  // リンクをチェックする主要な処理
   const checkLinks = async () => {
+    // 初期化
     setIsChecking(true);
     setResults([]);
     setError(null);
     abortControllerRef.current = new AbortController();
 
+    // 指定したミリ秒待機する関数
     const delay = (ms: number) => {
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(resolve, ms);
@@ -92,6 +111,7 @@ function App() {
       });
     };
 
+    // 入力されたURLを処理
     const urls = urlInput
       .split('\n')
       .map(line => line.trim())
@@ -106,6 +126,7 @@ function App() {
       })
       .filter((url): url is string => url !== null);
 
+    // 有効なURLがない場合はエラー
     if (urls.length === 0) {
       setError('No valid URLs provided');
       setIsChecking(false);
@@ -114,37 +135,48 @@ function App() {
 
     const crawler = new Crawler();
     const linkChecker = new LinkChecker();
+    // 処理済みのリンクを管理するMap
     const processedLinks = new Map<string, Set<string>>();
     const errors: Array<{url: string; error: string}> = [];
 
     try {
+      // 各URLに対して処理を実行
       for (const pageUrl of urls) {
         try {
+          // キャンセルされた場合は処理を中断
           if (abortControllerRef.current?.signal.aborted) {
             throw new Error('Cancelled');
           }
 
-          await delay(2000);
+          // レート制限を考慮して待機
+          await delay(1000);
+          // ページ内のリンクを取得
           const links = await crawler.crawlPage(pageUrl);
 
+          // 各リンクに対して処理を実行
           for (const link of links) {
             if (abortControllerRef.current?.signal.aborted) {
               throw new Error('Cancelled');
             }
 
+            // 相対URLを絶対URLに変換
             const fullUrl = toAbsoluteUrl(link.href, pageUrl);
             if (!fullUrl) continue;
 
+            // 同じURLと同じリンクテキストの組み合わせは1回だけ処理
             const linkTexts = processedLinks.get(fullUrl) || new Set();
             if (linkTexts.has(link.text)) continue;
             linkTexts.add(link.text);
             processedLinks.set(fullUrl, linkTexts);
 
             try {
+              // レート制限を考慮して待機
               await delay(1000);
+              // リンクの状態をチェック
               const [statusCode, titleOrText] = await linkChecker.checkLink(fullUrl);
               const judgment = linkChecker.judgeLink(link.text, titleOrText, statusCode, link.originalHref);
 
+              // 結果を保存
               setResults(prev => [...prev, {
                 foundOn: pageUrl,
                 href: fullUrl,
@@ -172,6 +204,7 @@ function App() {
         }
       }
 
+      // エラーがある場合はエラーメッセージを設定
       if (errors.length > 0) {
         setError(`Errors occurred while checking links:\n${errors.map(e => `${e.url}: ${e.error}`).join('\n')}`);
       }
@@ -181,13 +214,16 @@ function App() {
         setError(`Failed to check links: ${errorMessage}`);
       }
     } finally {
+      // 処理完了時のクリーンアップ
       setIsChecking(false);
       abortControllerRef.current = null;
       crawler.clearProcessedUrls();
     }
   };
 
+  // CSVダウンロード用の関数
   const downloadCsv = useCallback(() => {
+    // CSVデータを生成
     const csvContent = [
       ['Found On', 'Link Text', 'URL', 'Original URL', 'Status Code', 'Title/Text', 'Judgment'],
       ...results.map(result => [
@@ -201,6 +237,7 @@ function App() {
       ])
     ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
 
+    // ダウンロード用のBlobを生成
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -214,7 +251,7 @@ function App() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Link Checker</h1>
+      <h1 className="text-2xl font-bold mb-4">Link Text Sutability Checker</h1>
       
       <div className="mb-4">
         <textarea
@@ -261,6 +298,8 @@ function App() {
           />
           <span>Show only issues</span>
         </label>
+
+        <p className="text-sm text-gray-500">Note: If a redirect occurs, display the status code and text of the page after redirect.</p>
       </div>
 
       {error && (
@@ -360,7 +399,7 @@ function App() {
                     <td className="px-4 py-2">{result.titleOrTextNode}</td>
                     <td className={`px-4 py-2 ${
                       result.judgment === 'error' ? 'text-red-600 font-bold' :
-                      result.judgment === 'review' ? 'text-orange-600 font-bold' :
+                      result.judgment === 'review' ? 'text-yellow-600 font-bold' :
                       result.judgment === 'empty' ? 'text-red-600 font-bold' :
                       result.judgment === 'dummy' ? 'text-purple-600 font-bold' :
                       result.judgment === 'ok' ? 'text-green-600' : ''
