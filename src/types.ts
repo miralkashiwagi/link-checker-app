@@ -41,3 +41,12 @@ export interface CacheEntry {
   titleOrText: string;
   timestamp: number;
 }
+
+declare global {
+  interface Window {
+    electronAPI: {
+      fetchUrl: (url: string) => Promise<CrawlerResponse>;
+      startSessionCapture: (url: string) => Promise<boolean>;
+    }
+  }
+}

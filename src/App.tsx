@@ -45,7 +45,7 @@ function App() {
     return results.filter(result => {
 
       if (result.judgment === 'ok') return false;
-      
+
       // リンクテキストが空の場合は、HTML構造も含めて比較
       const key = (!result.linkText)
         ? `${result.href}-${result.html}`
@@ -53,7 +53,7 @@ function App() {
 
       if (processedUrls.has(key)) return false;
       processedUrls.add(key);
-      
+
       return true;
     });
   }, [results, showOnlyIssues]);
@@ -64,12 +64,12 @@ function App() {
       const direction = sortDirection === 'asc' ? 1 : -1;
       const aValue = a[sortField];
       const bValue = b[sortField];
-      
+
       // 数値の場合は数値としてソート
       if (typeof aValue === 'number' && typeof bValue === 'number') {
         return (aValue - bValue) * direction;
       }
-      
+
       // 文字列の場合は文字列としてソート
       return String(aValue).localeCompare(String(bValue)) * direction;
     });
@@ -141,7 +141,7 @@ function App() {
     const linkChecker = new LinkChecker();
     // 処理済みのリンクを管理するMap
     const processedLinks = new Map<string, Set<string>>();
-    const errors: Array<{url: string; error: string}> = [];
+    const errors: Array<{ url: string; error: string }> = [];
 
     try {
       // 各URLに対して処理を実行
@@ -226,6 +226,20 @@ function App() {
     }
   };
 
+  // セッションキャプチャーウィンドウを開く処理
+  const handleSessionCapture = useCallback(async () => {
+    try {
+      const baseUrl = urlInput.trim();
+      if (!baseUrl) {
+        setError('URLを入力してください');
+        return;
+      }
+      await window.electronAPI.startSessionCapture(baseUrl);
+    } catch (err) {
+      setError('セッションキャプチャー中にエラーが発生しました: ' + (err as Error).message);
+    }
+  }, [urlInput]);
+
   // CSVダウンロード用の関数
   const downloadCsv = useCallback(() => {
     // CSVデータを生成
@@ -257,171 +271,180 @@ function App() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Link Text Sutability Checker</h1>
-      
-      <div className="mb-4">
-        <textarea
-          className="w-full h-32 p-2 border rounded"
-          value={urlInput}
-          onChange={(e) => setUrlInput(e.target.value)}
-          placeholder="Enter URLs to check (one per line)"
-          disabled={isChecking}
-        />
-      </div>
 
-      <div className="flex gap-4 mb-4">
-        <button
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
-          onClick={checkLinks}
-          disabled={isChecking || !urlInput.trim()}
-        >
-          {isChecking ? 'Checking...' : 'Check Links'}
-        </button>
-
-        {isChecking && (
+      <div className="flex flex-col gap-4 p-4">
+        <div className="flex gap-4 items-center">
+          <textarea
+            className="w-full h-32 p-2 border rounded"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            placeholder="Enter URLs to check (one per line)"
+            disabled={isChecking}
+          />
           <button
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-            onClick={stopChecking}
+            onClick={handleSessionCapture}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2"
+            title="ログインが必要なページの場合、このボタンを押して認証情報を記録してください"
           >
-            Stop Checking
+            <FileText size={20} />
+            Basic認証突破
           </button>
+        </div>
+        </div>
+
+
+        <div className="flex gap-4 mb-4">
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+            onClick={checkLinks}
+            disabled={isChecking || !urlInput.trim()}
+          >
+            {isChecking ? 'Checking...' : 'Check Links'}
+          </button>
+
+          {isChecking && (
+            <button
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              onClick={stopChecking}
+            >
+              Stop Checking
+            </button>
+          )}
+
+          <button
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
+            onClick={downloadCsv}
+            disabled={results.length === 0}
+          >
+            Download CSV
+          </button>
+
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showOnlyIssues}
+              onChange={e => setShowOnlyIssues(e.target.checked)}
+              className="form-checkbox h-5 w-5 text-blue-600"
+            />
+            <span>Show only issues</span>
+          </label>
+
+          <p className="text-sm text-gray-500">Note: If a redirect occurs, display the status code and text of the page after redirect.</p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
+            {error}
+          </div>
         )}
 
-        <button
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
-          onClick={downloadCsv}
-          disabled={results.length === 0}
-        >
-          Download CSV
-        </button>
+        {Array.from(groupedResults.entries()).map(([pageUrl, pageResults]) => (
+          <div key={pageUrl} className="mb-8">
+            <h2 className="text-xl font-bold mb-4">
+              <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                {pageUrl}
+              </a>
+            </h2>
 
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={showOnlyIssues}
-            onChange={e => setShowOnlyIssues(e.target.checked)}
-            className="form-checkbox h-5 w-5 text-blue-600"
-          />
-          <span>Show only issues</span>
-        </label>
-
-        <p className="text-sm text-gray-500">Note: If a redirect occurs, display the status code and text of the page after redirect.</p>
-      </div>
-
-      {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
-          {error}
-        </div>
-      )}
-
-      {Array.from(groupedResults.entries()).map(([pageUrl, pageResults]) => (
-        <div key={pageUrl} className="mb-8">
-          <h2 className="text-xl font-bold mb-4">
-            <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-              {pageUrl}
-            </a>
-          </h2>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border border-gray-200">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('href')}>
-                    <div className="flex items-center gap-1">
-                      URL
-                      {sortField === 'href' && (
-                        <ArrowUpDown
-                          size={16}
-                          className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                        />
-                      )}
-                    </div>
-                  </th>
-                  <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('statusCode')}>
-                    <div className="flex items-center gap-1">
-                      Status
-                      {sortField === 'statusCode' && (
-                        <ArrowUpDown
-                          size={16}
-                          className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                        />
-                      )}
-                    </div>
-                  </th>
-                  <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('judgment')}>
-                    <div className="flex items-center gap-1">
-                      Judgment
-                      {sortField === 'judgment' && (
-                        <ArrowUpDown
-                          size={16}
-                          className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                        />
-                      )}
-                    </div>
-                  </th>
-                  <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('linkText')}>
-                    <div className="flex items-center gap-1">
-                      Link Text
-                      {sortField === 'linkText' && (
-                        <ArrowUpDown
-                          size={16}
-                          className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
-                        />
-                      )}
-                    </div>
-                  </th>
-                  <th className="px-4 py-2">Title/Text Node</th>
-
-                </tr>
-              </thead>
-              <tbody>
-                {pageResults.map((result, index) => (
-                  <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                    <td className="px-4 py-2 break-all text-xs">
-                      <a href={result.href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                        {result.href}
-                      </a>
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className={`px-2 py-1 rounded ${
-                        result.statusCode === 200 ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {result.statusCode}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-2 ${
-                      result.judgment === 'error' ? 'text-red-600 font-bold' :
-                      result.judgment === 'review' ? 'text-yellow-600 font-bold' :
-                      result.judgment === 'empty' ? 'text-red-600 font-bold' :
-                      result.judgment === 'dummy' ? 'text-purple-600 font-bold' :
-                      result.judgment === 'ok' ? 'text-green-600' : ''
-                    }`}>
-                      {result.judgment}
-                    </td>
-                    <td className="px-4 py-2">
-                      {result.isAnchor && (
-                        <Anchor size={16} className="inline-block mr-1 text-gray-500" />
-                      )}
-                      {result.linkText || (
-                        <div className="text-gray-500 text-sm">
-                          <div className="font-mono bg-gray-100 p-2 rounded">
-                            <p className="mb-2">Link HTML:</p>
-                            <pre className="whitespace-pre-wrap">{result.html}</pre>
-                          </div>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">{result.titleOrTextNode}</td>
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white border border-gray-200">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('href')}>
+                      <div className="flex items-center gap-1">
+                        URL
+                        {sortField === 'href' && (
+                          <ArrowUpDown
+                            size={16}
+                            className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                          />
+                        )}
+                      </div>
+                    </th>
+                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('statusCode')}>
+                      <div className="flex items-center gap-1">
+                        Status
+                        {sortField === 'statusCode' && (
+                          <ArrowUpDown
+                            size={16}
+                            className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                          />
+                        )}
+                      </div>
+                    </th>
+                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('judgment')}>
+                      <div className="flex items-center gap-1">
+                        Judgment
+                        {sortField === 'judgment' && (
+                          <ArrowUpDown
+                            size={16}
+                            className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                          />
+                        )}
+                      </div>
+                    </th>
+                    <th className="px-4 py-2 cursor-pointer" onClick={() => handleSort('linkText')}>
+                      <div className="flex items-center gap-1">
+                        Link Text
+                        {sortField === 'linkText' && (
+                          <ArrowUpDown
+                            size={16}
+                            className={`transform ${sortDirection === 'desc' ? 'rotate-180' : ''}`}
+                          />
+                        )}
+                      </div>
+                    </th>
+                    <th className="px-4 py-2">Title/Text Node</th>
 
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {pageResults.map((result, index) => (
+                    <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                      <td className="px-4 py-2 break-all text-xs">
+                        <a href={result.href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                          {result.href}
+                        </a>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className={`px-2 py-1 rounded ${result.statusCode === 200 ? 'bg-green-100 text-green-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                          {result.statusCode}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-2 ${result.judgment === 'error' ? 'text-red-600 font-bold' :
+                          result.judgment === 'review' ? 'text-yellow-600 font-bold' :
+                            result.judgment === 'empty' ? 'text-red-600 font-bold' :
+                              result.judgment === 'dummy' ? 'text-purple-600 font-bold' :
+                                result.judgment === 'ok' ? 'text-green-600' : ''
+                        }`}>
+                        {result.judgment}
+                      </td>
+                      <td className="px-4 py-2">
+                        {result.isAnchor && (
+                          <Anchor size={16} className="inline-block mr-1 text-gray-500" />
+                        )}
+                        {result.linkText || (
+                          <div className="text-gray-500 text-sm">
+                            <div className="font-mono bg-gray-100 p-2 rounded">
+                              <p className="mb-2">Link HTML:</p>
+                              <pre className="whitespace-pre-wrap">{result.html}</pre>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">{result.titleOrTextNode}</td>
+
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
-  );
+        ))}
+      </div>
+      );
 }
 
-export default App;
+      export default App;
