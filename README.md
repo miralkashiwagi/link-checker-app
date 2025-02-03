@@ -33,13 +33,8 @@ npm run electron:dev
 以下のコマンドでアプリケーションをビルドできます：
 
 ```bash
-npm run build
 npm run electron:build
 ```
-
-このコマンドは以下の処理を実行します：
-1. Viteによるフロントエンドのビルド
-2. Electronアプリケーションのパッケージング
 
 ビルドされたアプリケーションは `release` ディレクトリに生成されます。
 
