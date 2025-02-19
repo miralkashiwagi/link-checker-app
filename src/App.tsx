@@ -184,40 +184,43 @@ function App() {
             linkTexts.add(linkKey);
             processedLinks.set(fullUrl, linkTexts);
 
-            try {
-              // レート制限を考慮して待機
-              await delay(1000);
-              // リンクの状態をチェック
-              const [statusCode, titleOrText] = await linkChecker.checkLink(fullUrl);
-              const judgment = linkChecker.judgeLink(
-                link.text,
-                titleOrText,
-                statusCode,
-                link.originalHref,
-                fullUrl,
-                pageUrl
-              );
-
-              // 結果を保存
-              setResults(prev => [...prev, {
-                foundOn: pageUrl,
-                href: fullUrl,
-                originalHref: link.originalHref,
-                statusCode,
-                linkText: link.text,
-                titleOrTextNode: titleOrText,
-                judgment,
-                error: null,
-                html: link.html,
-                parentHtml: link.parentHtml,
-                isAnchor: link.isAnchor || false
-              }]);
-
-            } catch (error) {
-              if (error.message === 'Cancelled') throw error;
-              const errorMessage = error instanceof Error ? error.message : String(error);
-              errors.push({ url: fullUrl, error: errorMessage });
+            // レート制限を考慮して待機
+            await delay(1000);
+            
+            if (abortControllerRef.current?.signal.aborted) {
+              throw new Error('Cancelled');
             }
+
+            // リンクの状態をチェック
+            const [statusCode, titleOrText] = await linkChecker.checkLink(fullUrl);
+            
+            if (abortControllerRef.current?.signal.aborted) {
+              throw new Error('Cancelled');
+            }
+
+            const judgment = linkChecker.judgeLink(
+              link.text,
+              titleOrText,
+              statusCode,
+              link.originalHref,
+              fullUrl,
+              pageUrl
+            );
+
+            // 結果を保存
+            setResults(prev => [...prev, {
+              foundOn: pageUrl,
+              href: fullUrl,
+              originalHref: link.originalHref,
+              statusCode,
+              linkText: link.text,
+              titleOrTextNode: titleOrText,
+              judgment,
+              error: null,
+              html: link.html,
+              parentHtml: link.parentHtml,
+              isAnchor: link.isAnchor || false
+            }]);
           }
         } catch (error) {
           if (error.message === 'Cancelled') throw error;
@@ -328,13 +331,18 @@ function App() {
             </button>
           )}
 
-          <button
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
-            onClick={downloadCsv}
-            disabled={results.length === 0}
-          >
-            Download CSV
-          </button>
+          {!isChecking && results.length > 0 && (
+            <>
+              <span className="px-4 py-2 text-green-600 font-medium">Done!</span>
+              <button
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2"
+                onClick={downloadCsv}
+              >
+                <FileText size={20} />
+                Download CSV
+              </button>
+            </>
+          )}
 
           <label className="flex items-center gap-2">
             <input
@@ -345,9 +353,9 @@ function App() {
             />
             <span>Show only issues</span>
           </label>
-
-          <p className="text-sm text-gray-500">Note: If a redirect occurs, display the status code and text of the page after redirect.</p>
         </div>
+
+        <p className="text-sm text-gray-500 mb-4">Note: If a redirect occurs, display the status code and text of the page after redirect.</p>
 
         {error && (
           <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
