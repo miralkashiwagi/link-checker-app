@@ -10,6 +10,16 @@ type SortField = 'statusCode' | 'linkText' | 'href' | 'judgment' | 'titleOrTextN
 // ソートの方向（昇順・降順）の型定義
 type SortDirection = 'asc' | 'desc';
 
+declare global {
+  interface Window {
+    electronAPI: {
+      fetchUrl: (url: string) => Promise<any>;
+      startSessionCapture: (url: string) => Promise<boolean>;
+      openInBrowser: (url: string) => Promise<boolean>;
+    }
+  }
+}
+
 function App() {
   // 入力されたURLを管理するstate
   const [urlInput, setUrlInput] = useState<string>('');
@@ -348,7 +358,14 @@ function App() {
         {Array.from(groupedResults.entries()).map(([pageUrl, pageResults]) => (
           <div key={pageUrl} className="mb-8">
             <h2 className="text-xl font-bold mb-4">
-              <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+              <a
+                href={pageUrl}
+                className="text-blue-600 hover:text-blue-800"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  await window.electronAPI.openInBrowser(pageUrl);
+                }}
+              >
                 {pageUrl}
               </a>
             </h2>
@@ -407,11 +424,21 @@ function App() {
                 </thead>
                 <tbody>
                   {pageResults.map((result, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                      <td className="px-4 py-2 break-all text-xs">
-                        <a href={result.href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                          {result.href}
-                        </a>
+                    <tr key={`${result.foundOn}-${result.href}-${result.linkText || ''}-${index}`} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          {result.isAnchor && <Anchor size={16} className="text-blue-500" />}
+                          <a
+                            href={result.href}
+                            className="text-blue-600 hover:text-blue-800"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              await window.electronAPI.openInBrowser(result.href);
+                            }}
+                          >
+                            {result.href}
+                          </a>
+                        </div>
                       </td>
                       <td className="px-4 py-2">
                         <span className={`px-2 py-1 rounded ${result.statusCode === 200 ? 'bg-green-100 text-green-800' :

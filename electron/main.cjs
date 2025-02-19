@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session } = require('electron');
+const { app, BrowserWindow, ipcMain, session, shell } = require('electron');
 const path = require('path');
 const nodeFetch = require('node-fetch').default;
 const { JSDOM } = require('jsdom');
@@ -199,6 +199,11 @@ app.whenReady().then(() => {
         redirectUrl: null
       };
     }
+  });
+
+  ipcMain.handle('open-in-browser', async (event, url) => {
+    await shell.openExternal(url);
+    return true;
   });
 
   app.on('activate', () => {
