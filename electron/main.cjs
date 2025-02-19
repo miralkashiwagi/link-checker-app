@@ -114,15 +114,30 @@ function createSessionWindow() {
   });
 
   // セッションのクッキーを監視
-  sessionWindow.webContents.session.webRequest.onCompleted((details) => {
+  const onCompletedHandler = (details) => {
+    if (!sessionWindow || !sessionWindow.webContents) return;
+    
     const cookies = sessionWindow.webContents.session.cookies;
     cookies.get({})
       .then((cookiesList) => {
         sessionCookies.set(new URL(details.url).origin, cookiesList);
       });
+  };
+
+  sessionWindow.webContents.session.webRequest.onCompleted(onCompletedHandler);
+
+  // セッションウィンドウが閉じられる直前の処理
+  sessionWindow.on('close', () => {
+    if (sessionWindow && sessionWindow.webContents) {
+      try {
+        sessionWindow.webContents.session.webRequest.onCompleted(null);
+      } catch (e) {
+        console.error('Failed to remove onCompleted handler:', e);
+      }
+    }
   });
 
-  // セッションウィンドウが閉じられたときの処理
+  // セッションウィンドウが閉じられた後の処理
   sessionWindow.on('closed', () => {
     sessionWindow = null;
   });
@@ -133,12 +148,22 @@ app.whenReady().then(() => {
 
   // IPC通信ハンドラーの登録
   ipcMain.handle('start-session-capture', async (event, url) => {
-    if (sessionWindow) {
-      sessionWindow.close();
-    }
-    createSessionWindow();
-    sessionWindow.loadURL(url || 'about:blank');
-    return true;
+    return new Promise((resolve) => {
+      const createNewWindow = () => {
+        createSessionWindow();
+        sessionWindow.loadURL(url || 'about:blank');
+        resolve(true);
+      };
+
+      if (sessionWindow) {
+        // 既存のウィンドウがある場合は、closedイベントのハンドラーを設定してから閉じる
+        sessionWindow.once('closed', createNewWindow);
+        sessionWindow.close();
+      } else {
+        // ウィンドウがない場合は直接作成
+        createNewWindow();
+      }
+    });
   });
 
   ipcMain.handle('fetch-url', async (event, url) => {
