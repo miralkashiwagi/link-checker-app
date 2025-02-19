@@ -35,6 +35,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   // 問題のあるリンクのみを表示するかどうかを管理するstate
   const [showOnlyIssues, setShowOnlyIssues] = useState(false);
+  // トースト通知の表示を管理するstate
+  const [showToast, setShowToast] = useState(false);
   // 非同期処理のキャンセル用のAbortControllerを管理するref
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -112,6 +114,7 @@ function App() {
     setIsChecking(true);
     setResults([]);
     setError(null);
+    setShowToast(false);
     abortControllerRef.current = new AbortController();
 
     // 指定したミリ秒待機する関数
@@ -234,13 +237,18 @@ function App() {
         setError(`Errors occurred while checking links:\n${errors.map(e => `${e.url}: ${e.error}`).join('\n')}`);
       }
     } catch (error) {
-      if (error.message !== 'Cancelled') {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        setError(`Failed to check links: ${errorMessage}`);
+      if (error.message === 'Cancelled') {
+        setError('Link checking was cancelled');
+      } else {
+        setError(`An error occurred: ${error.message}`);
       }
     } finally {
       // 処理完了時のクリーンアップ
       setIsChecking(false);
+      // エラーがなく、かつキャンセルされていない場合のみトーストを表示
+      if (!error && !abortControllerRef.current?.signal.aborted) {
+        setShowToast(true);
+      }
       abortControllerRef.current = null;
       crawler.clearProcessedUrls();
     }
@@ -290,6 +298,22 @@ function App() {
 
   return (
     <div className="container mx-auto p-4">
+      {/* トースト通知 */}
+      {showToast && (
+        <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded flex items-center shadow-lg">
+          <span className="font-medium mr-2">Done!</span>
+          <span>Link checking completed successfully.</span>
+          <button
+            onClick={() => setShowToast(false)}
+            className="ml-4 text-green-700 hover:text-green-900"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold mb-4">Link Text Sutability Checker</h1>
 
       <div className="flex flex-col gap-4 p-4">
