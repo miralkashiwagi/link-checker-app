@@ -42,11 +42,42 @@ export interface CacheEntry {
   timestamp: number;
 }
 
+// ソート関連の型定義
+export type SortField = 'statusCode' | 'linkText' | 'href' | 'judgment' | 'titleOrTextNode';
+export type SortDirection = 'asc' | 'desc';
+
+// UI関連の型定義
+export interface InputSectionProps {
+  urlInput: string;
+  isChecking: boolean;
+  onUrlInputChange: (value: string) => void;
+  onSessionCapture: () => void;
+  onCheckLinks: () => void;
+  onStopChecking: () => void;
+  onDownloadCsv: () => void;
+  onShowOnlyIssuesChange: (checked: boolean) => void;
+  showOnlyIssues: boolean;
+  hasResults: boolean;
+}
+
+export interface ResultsTableProps {
+  groupedResults: Map<string, CheckResult[]>;
+  sortField: string;
+  sortDirection: string;
+  onSort: (field: SortField) => void;
+}
+
+export interface ToastProps {
+  show: boolean;
+  onClose: () => void;
+}
+
 declare global {
   interface Window {
     electronAPI: {
       fetchUrl: (url: string) => Promise<CrawlerResponse>;
       startSessionCapture: (url: string) => Promise<boolean>;
+      openInBrowser: (url: string) => Promise<boolean>;
     }
   }
 }
