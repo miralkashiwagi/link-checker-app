@@ -1,8 +1,8 @@
 {
-  "name": "link-checker-app",
+  "name": "link-legit",
   "private": true,
   "version": "0.1.0",
-  "description": "An application to check and validate links in web pages",
+  "description": "A reliable and efficient link validation application",
   "author": {
     "name": "Your Name"
   },
@@ -14,11 +14,12 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "electron:dev": "cross-env NODE_ENV=development electron electron/main.cjs",
-    "electron:build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false npm run build && electron-builder --dir --config.win.signAndEditExecutable=false",
+    "electron:build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false npm run build && electron-builder --config.win.signAndEditExecutable=false",
     "electron:preview": "cross-env NODE_ENV=production electron electron/main.cjs"
   },
   "build": {
-    "appId": "com.link-checker.app",
+    "appId": "com.linklegit.app",
+    "productName": "LinkLegit",
     "files": [
       "dist/**/*",
       "electron/**/*"
@@ -27,7 +28,14 @@
       "output": "release"
     },
     "win": {
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false
+    },
+    "mac": {
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "icon": "build/icon.png"
     }
   },
   "dependencies": {

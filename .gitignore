@@ -17,7 +17,7 @@ dist
 dist-ssr
 dist-electron
 *.local
-build
+#build
 out
 
 # Testing

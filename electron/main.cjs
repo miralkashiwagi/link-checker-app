@@ -7,6 +7,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    title: 'LinkLegit',
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: true,

@@ -70,7 +70,7 @@ function App() {
     <div className="container mx-auto p-4">
       <Toast show={showToast} onClose={() => setShowToast(false)} />
 
-      <h1 className="text-2xl font-bold mb-4">Link Text Sutability Checker</h1>
+      <h1 className="text-2xl font-bold mb-4">LinkLegit - Link Text Sutability Checker</h1>
 
       <InputSection
         urlInput={urlInput}
