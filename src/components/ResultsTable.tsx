@@ -23,7 +23,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
     <>
       {Array.from(groupedResults.entries()).map(([pageUrl, pageResults]) => (
         <div key={pageUrl} className="mb-8">
-          <h2 className="text-xl font-bold mb-4">
+          <h2 className="text-md font-bold mb-4">
             <a
               href={pageUrl}
               className="text-blue-600 hover:text-blue-800"
@@ -37,10 +37,10 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
           </h2>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border border-gray-200">
+            <table className="min-w-full text-sm bg-white border border-gray-200">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-4 py-2 cursor-pointer" onClick={() => onSort('href')}>
+                  <th className="px-4 py-1 cursor-pointer" onClick={() => onSort('href')}>
                     <div className="flex items-center gap-1">
                       URL
                       {sortField === 'href' && (
@@ -51,7 +51,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th className="px-4 py-2 cursor-pointer" onClick={() => onSort('statusCode')}>
+                  <th className="px-4 py-1 cursor-pointer" onClick={() => onSort('statusCode')}>
                     <div className="flex items-center gap-1">
                       Status
                       {sortField === 'statusCode' && (
@@ -62,7 +62,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th className="px-4 py-2 cursor-pointer" onClick={() => onSort('judgment')}>
+                  <th className="px-4 py-1 cursor-pointer" onClick={() => onSort('judgment')}>
                     <div className="flex items-center gap-1">
                       Judgment
                       {sortField === 'judgment' && (
@@ -73,7 +73,7 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th className="px-4 py-2 cursor-pointer" onClick={() => onSort('linkText')}>
+                  <th className="px-4 py-1 cursor-pointer" onClick={() => onSort('linkText')}>
                     <div className="flex items-center gap-1">
                       Link Text
                       {sortField === 'linkText' && (
@@ -84,18 +84,18 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                       )}
                     </div>
                   </th>
-                  <th className="px-4 py-2">Title/Text Node</th>
+                  <th className="px-4 py-1">Title/Text Node</th>
                 </tr>
               </thead>
               <tbody>
                 {pageResults.map((result, index) => (
                   <tr key={`${result.foundOn}-${result.href}-${result.linkText || ''}-${index}`} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
                     <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 max-w-md">
                         {result.isAnchor && <Anchor size={16} className="text-blue-500" />}
                         <a
                           href={result.href}
-                          className="text-blue-600 hover:text-blue-800"
+                          className="text-blue-600 hover:text-blue-800 break-all text-xs"
                           onClick={async (e) => {
                             e.preventDefault();
                             await handleOpenInBrowser(result.href);

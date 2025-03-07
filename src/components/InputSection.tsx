@@ -38,11 +38,11 @@ export const InputSection: React.FC<InputSectionProps> = ({
         />
         <button
           onClick={onSessionCapture}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2"
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm flex flex-shrink-0 items-center gap-2"
           title="ログインが必要なページの場合、このボタンを押して認証情報を記録してください"
         >
           <FileText size={20} />
-          Basic認証突破
+          認証突破
         </button>
       </div>
 
