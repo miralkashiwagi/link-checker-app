@@ -48,8 +48,20 @@ export function isLinkTextProper(linkText: string, targetText: string): boolean 
     return true;
   }
 
+  // 混合テキストの処理（アルファベットと日本語を分割）
+  const splitParts = splitMixedText(normalizedLinkText);
+  if (splitParts.length > 1) {
+    for (const part of splitParts) {
+      // 各部分とターゲットテキストを比較
+      if (normalizedTargetText.includes(part) && part.length >= 2) {
+        return true;
+      }
+    }
+  }
+
   return false;
 }
+
 
 /**
  * 文字列の正規化を行う共通関数
@@ -96,4 +108,29 @@ function normalizeTargetText(text: string): string {
   return normalizeText(text
     .replace(separatorPattern, '') // 区切り文字以降を除去
   );
+}
+
+/**
+ * アルファベットと日本語が混在するテキストを分割する
+ * 例: "Newsお知らせ" → ["news", "お知らせ"]
+ */
+function splitMixedText(text: string): string[] {
+  // 日本語とアルファベット/数字の境界にあるパターンを見つける
+  const parts: string[] = [];
+
+  // アルファベット部分と非アルファベット部分を分離する正規表現
+  const pattern = /([a-z0-9]+)|([^a-z0-9]+)/gi;
+  let matches;
+
+  while ((matches = pattern.exec(text)) !== null) {
+    if (matches[0]) {
+      // 空白を除去して有効なパートのみ追加
+      const part = matches[0].trim();
+      if (part) {
+        parts.push(part.toLowerCase());
+      }
+    }
+  }
+
+  return parts;
 }
