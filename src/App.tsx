@@ -67,11 +67,9 @@ function App() {
   }, [results]);
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="mx-auto p-4">
       <Toast show={showToast} onClose={() => setShowToast(false)} />
-
-      <h1 className="text-lg font-bold mb-2">LinkLegit - Link Text Sutability Checker</h1>
-
+      <h1 className="text-lg font-bold mb-1">LinkLegit - Link Text Sutability Checker</h1>
       <InputSection
         urlInput={urlInput}
         isChecking={isChecking}
@@ -84,7 +82,6 @@ function App() {
         showOnlyIssues={showOnlyIssues}
         hasResults={results.length > 0}
       />
-
       {error && (
         <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
           {error}
