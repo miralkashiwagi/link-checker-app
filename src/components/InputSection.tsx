@@ -40,9 +40,9 @@ export const InputSection: React.FC<InputSectionProps> = ({
                         disabled={isChecking}
                     />
                 </div>
-                <div className="flex gap-2 flex-col">
+                <div className="flex gap-4 flex-col">
                     <button
-                        className="px-4 py-2 flex gap-1 items-center bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+                        className="px-8 py-3 flex gap-1 items-center bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
                         onClick={onCheckLinks}
                         disabled={isChecking || !urlInput.trim()}
                     >
@@ -51,7 +51,7 @@ export const InputSection: React.FC<InputSectionProps> = ({
                     </button>
                     <button
                         onClick={onSessionCapture}
-                        className="px-4 py-2 bg-gray-200 text-black rounded hover:bg-sky-200 text-sm flex flex-shrink-0 items-center gap-2"
+                        className="px-8 py-2 bg-gray-200 text-black rounded hover:bg-sky-200 text-sm flex flex-shrink-0 items-center gap-2"
                         title="ログインが必要なページの場合、このボタンを押して認証情報を記録してください"
                     >
                         <Key size={16}/>

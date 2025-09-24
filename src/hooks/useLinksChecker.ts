@@ -26,7 +26,7 @@ export const useLinksChecker = () => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsChecking(false);
-      setError('Link checking was cancelled');
+      setError('チェックが中断されました');
     }
   }, []);
 
@@ -132,13 +132,13 @@ export const useLinksChecker = () => {
       }
 
       if (errors.length > 0) {
-        setError(`Errors occurred while checking links:\n${errors.map(e => `${e.url}: ${e.error}`).join('\n')}`);
+        setError(`エラー発生:\n${errors.map(e => `${e.url}: ${e.error}`).join('\n')}`);
       }
     } catch (error) {
       if (error.message === 'Cancelled') {
-        setError('Link checking was cancelled');
+        setError('チェックが中断されました');
       } else {
-        setError(`An error occurred: ${error.message}`);
+        setError(`エラー発生: ${error.message}`);
       }
     } finally {
       setIsChecking(false);

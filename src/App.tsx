@@ -83,9 +83,11 @@ function App() {
         hasResults={results.length > 0}
       />
       {error && (
-        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
-          {error}
-        </div>
+          <div className="py-3">
+              <div className="p-4 bg-red-100 text-red-700 rounded">
+                  {error}
+              </div>
+          </div>
       )}
 
       <ResultsTable
