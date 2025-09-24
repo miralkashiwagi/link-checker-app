@@ -69,7 +69,7 @@ function App() {
   return (
     <div className="mx-auto p-4">
       <Toast show={showToast} onClose={() => setShowToast(false)} />
-      <h1 className="text-lg font-bold mb-1">LinkLegit - Link Text Sutability Checker</h1>
+      <h1 className="text-lg font-bold mb-1">LinkLegit - リンクテキスト整合性チェッカー</h1>
       <InputSection
         urlInput={urlInput}
         isChecking={isChecking}

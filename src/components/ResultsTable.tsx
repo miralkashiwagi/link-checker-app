@@ -41,8 +41,8 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
                             <colgroup>
                                 <col style={{width: '76px'}}/>
                                 <col style={{width: '64px'}}/>
-                                <col style={{width: '30%'}}/>
                                 <col/>
+                                <col style={{width: '30%'}}/>
                                 <col style={{width: '30%'}}/>
                             </colgroup>
                             <thead className="bg-gray-100">
