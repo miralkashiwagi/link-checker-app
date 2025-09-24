@@ -5,7 +5,7 @@ type SortField = 'statusCode' | 'linkText' | 'href' | 'judgment' | 'titleOrTextN
 type SortDirection = 'asc' | 'desc';
 
 export const useSort = () => {
-  const [sortField, setSortField] = useState<SortField>('statusCode');
+  const [sortField, setSortField] = useState<SortField>('judgment');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const handleSort = useCallback((field: SortField) => {
