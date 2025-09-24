@@ -18,6 +18,21 @@ export const useSort = () => {
   const sortResults = (results: CheckResult[]) => {
     return [...results].sort((a, b) => {
       const direction = sortDirection === 'asc' ? 1 : -1;
+
+      // Custom sort for 'judgment': error → empty → review → dummy → ok
+      if (sortField === 'judgment') {
+        const order: Record<string, number> = {
+          error: 0,
+          empty: 1,
+          review: 2,
+          dummy: 3,
+          ok: 4
+        };
+        const aRank = order[(a.judgment as unknown as string) ?? ''] ?? Number.MAX_SAFE_INTEGER;
+        const bRank = order[(b.judgment as unknown as string) ?? ''] ?? Number.MAX_SAFE_INTEGER;
+        return (aRank - bRank) * direction;
+      }
+
       const aValue = a[sortField];
       const bValue = b[sortField];
 
@@ -25,7 +40,7 @@ export const useSort = () => {
         return (aValue - bValue) * direction;
       }
 
-      return String(aValue).localeCompare(String(bValue)) * direction;
+      return String(aValue ?? '').localeCompare(String(bValue ?? '')) * direction;
     });
   };
 
